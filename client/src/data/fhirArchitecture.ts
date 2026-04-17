@@ -122,12 +122,6 @@ export const msCoreTerminologies: Microsservico = {
       descricao: 'Obter um sistema de codificação específico',
       parametros: ['id'],
       resposta: 'CodeSystem'
-    },
-    {
-      metodo: 'GET',
-      caminho: '/fhir/ValueSet',
-      descricao: 'Listar todos os conjuntos de valores',
-      resposta: 'Bundle de ValueSet'
     }
   ],
   observabilidade: {
@@ -191,12 +185,6 @@ export const msCoreMedicationsCatalog: Microsservico = {
       descricao: 'Obter medicamento específico',
       parametros: ['id'],
       resposta: 'MedicinalProductDefinition com preços e composição'
-    },
-    {
-      metodo: 'GET',
-      caminho: '/fhir/Medication',
-      descricao: 'Listar medicamentos (versão simplificada)',
-      resposta: 'Bundle de Medication'
     }
   ],
   observabilidade: {
@@ -208,6 +196,132 @@ export const msCoreMedicationsCatalog: Microsservico = {
     { origem: 'ANVISA CMED', destino: 'core_medications.medicamentos', tipo: 'import' },
     { origem: 'core_medications', destino: 'ms-clinical-prescriptions', tipo: 'reference' },
     { origem: 'core_medications', destino: 'ms-financial-claims', tipo: 'reference' }
+  ]
+};
+
+export const msCoreDevicesCatalog: Microsservico = {
+  id: 'ms-core-devices-catalog',
+  nome: 'ms-core-devices-catalog',
+  descricao: 'Catálogo de materiais e dispositivos OPME com conformidade FHIR',
+  namespace: 'ns-core-devices',
+  schema: 'core_devices',
+  componentes: [
+    {
+      id: 'api-devices',
+      tipo: 'api',
+      nome: 'API FHIR Devices',
+      descricao: 'Endpoints RESTful para DeviceDefinition, ManufacturedItemDefinition',
+      tecnologia: 'Spring Boot 3.0'
+    },
+    {
+      id: 'db-devices',
+      tipo: 'database',
+      nome: 'PostgreSQL - Devices',
+      descricao: 'Schema core_devices com tabela TUSS 19',
+      tecnologia: 'PostgreSQL 15'
+    }
+  ],
+  swagger: [
+    {
+      metodo: 'GET',
+      caminho: '/fhir/DeviceDefinition',
+      descricao: 'Listar dispositivos e materiais do catálogo TUSS',
+      parametros: ['manufacturer', 'type'],
+      resposta: 'Bundle de DeviceDefinition'
+    }
+  ],
+  observabilidade: {
+    logs: 'Stackdriver Logging - /logs/ms-core-devices-catalog',
+    metricas: 'Prometheus - Port 9092',
+    traces: 'Jaeger - Port 16686'
+  },
+  dataLineage: [
+    { origem: 'ANS TUSS 19', destino: 'core_devices.materiais', tipo: 'import' },
+    { origem: 'core_devices', destino: 'ms-clinical-procedures', tipo: 'reference' }
+  ]
+};
+
+export const msCoreProceduresCatalog: Microsservico = {
+  id: 'ms-core-procedures-catalog',
+  nome: 'ms-core-procedures-catalog',
+  descricao: 'Catálogo de procedimentos e exames com conformidade FHIR',
+  namespace: 'ns-core-procedures',
+  schema: 'core_procedures',
+  componentes: [
+    {
+      id: 'api-procedures',
+      tipo: 'api',
+      nome: 'API FHIR Procedures',
+      descricao: 'Endpoints RESTful para ActivityDefinition, ServiceRequest',
+      tecnologia: 'Spring Boot 3.0'
+    },
+    {
+      id: 'db-procedures',
+      tipo: 'database',
+      nome: 'PostgreSQL - Procedures',
+      descricao: 'Schema core_procedures com tabela TUSS 22',
+      tecnologia: 'PostgreSQL 15'
+    }
+  ],
+  swagger: [
+    {
+      metodo: 'GET',
+      caminho: '/fhir/ActivityDefinition',
+      descricao: 'Listar procedimentos do catálogo TUSS',
+      parametros: ['category', 'code'],
+      resposta: 'Bundle de ActivityDefinition'
+    }
+  ],
+  observabilidade: {
+    logs: 'Stackdriver Logging - /logs/ms-core-procedures-catalog',
+    metricas: 'Prometheus - Port 9093',
+    traces: 'Jaeger - Port 16686'
+  },
+  dataLineage: [
+    { origem: 'ANS TUSS 22', destino: 'core_procedures.procedimentos', tipo: 'import' },
+    { origem: 'core_procedures', destino: 'ms-clinical-procedures', tipo: 'reference' }
+  ]
+};
+
+export const msCoreDiagnosticsCatalog: Microsservico = {
+  id: 'ms-core-diagnostics-catalog',
+  nome: 'ms-core-diagnostics-catalog',
+  descricao: 'Catálogo de diagnósticos com CID-10/11 e conformidade FHIR',
+  namespace: 'ns-core-diagnostics',
+  schema: 'core_diagnostics',
+  componentes: [
+    {
+      id: 'api-diagnostics',
+      tipo: 'api',
+      nome: 'API FHIR Diagnostics',
+      descricao: 'Endpoints RESTful para CodeSystem de diagnósticos',
+      tecnologia: 'Spring Boot 3.0'
+    },
+    {
+      id: 'db-diagnostics',
+      tipo: 'database',
+      nome: 'PostgreSQL - Diagnostics',
+      descricao: 'Schema core_diagnostics com tabela CID-10/11',
+      tecnologia: 'PostgreSQL 15'
+    }
+  ],
+  swagger: [
+    {
+      metodo: 'GET',
+      caminho: '/fhir/CodeSystem/icd10',
+      descricao: 'Listar diagnósticos CID-10',
+      parametros: ['code', 'description'],
+      resposta: 'Bundle de Condition'
+    }
+  ],
+  observabilidade: {
+    logs: 'Stackdriver Logging - /logs/ms-core-diagnostics-catalog',
+    metricas: 'Prometheus - Port 9094',
+    traces: 'Jaeger - Port 16686'
+  },
+  dataLineage: [
+    { origem: 'DATASUS CID-10', destino: 'core_diagnostics.diagnosticos', tipo: 'import' },
+    { origem: 'core_diagnostics', destino: 'ms-clinical-conditions', tipo: 'reference' }
   ]
 };
 
@@ -337,6 +451,136 @@ export const arquiteturaFhir: CamadaL0[] = [
               },
             ],
             microsservico: msCoreMedicationsCatalog
+          },
+        ],
+      },
+      {
+        id: "dispositivos-modulo",
+        nome: "Dispositivos & Materiais",
+        descricao: "Gestão de materiais e dispositivos médicos",
+        cor: "from-orange-500 to-orange-600",
+        corFundo: "bg-orange-50",
+        icone: "🏥",
+        funcoes: [
+          {
+            id: "conhecimento-dispositivos",
+            nome: "Conhecimento de Dispositivos (L1)",
+            descricao: "Catálogo de materiais e dispositivos OPME",
+            cor: "bg-orange-100 border-orange-300",
+            corFundo: "bg-orange-50",
+            recursos: [
+              {
+                nome: "DefinicaoDispositivo",
+                descricao: "Definição de dispositivo/material (TUSS 19)",
+                versaoFhir: "R4/R5",
+                exemplos: ["Cateter venoso", "Agulha hipodérmica"],
+              },
+            ],
+            microsservico: msCoreDevicesCatalog
+          },
+        ],
+      },
+      {
+        id: "procedimentos-modulo",
+        nome: "Procedimentos & Exames",
+        descricao: "Gestão de procedimentos e exames clínicos",
+        cor: "from-purple-500 to-purple-600",
+        corFundo: "bg-purple-50",
+        icone: "🔬",
+        funcoes: [
+          {
+            id: "conhecimento-procedimentos",
+            nome: "Conhecimento de Procedimentos (L1)",
+            descricao: "Catálogo de procedimentos e exames TUSS",
+            cor: "bg-purple-100 border-purple-300",
+            corFundo: "bg-purple-50",
+            recursos: [
+              {
+                nome: "DefinicaoAtividade",
+                descricao: "Definição de procedimento/exame (TUSS 22)",
+                versaoFhir: "R4/R5",
+                exemplos: ["Ressonância magnética", "Eletrocardiograma"],
+              },
+            ],
+            microsservico: msCoreProceduresCatalog
+          },
+        ],
+      },
+      {
+        id: "diagnosticos-modulo",
+        nome: "Diagnósticos",
+        descricao: "Gestão de diagnósticos e condições clínicas",
+        cor: "from-pink-500 to-pink-600",
+        corFundo: "bg-pink-50",
+        icone: "📋",
+        funcoes: [
+          {
+            id: "conhecimento-diagnosticos",
+            nome: "Conhecimento de Diagnósticos (L1)",
+            descricao: "Catálogo de diagnósticos CID-10/11",
+            cor: "bg-pink-100 border-pink-300",
+            corFundo: "bg-pink-50",
+            recursos: [
+              {
+                nome: "SistemaCodeDiagnostico",
+                descricao: "Sistema de códigos de diagnóstico (CID-10/11)",
+                versaoFhir: "R4/R5",
+                exemplos: ["A00.0 - Cólera", "J45.9 - Asma não especificada"],
+              },
+            ],
+            microsservico: msCoreDiagnosticsCatalog
+          },
+        ],
+      },
+      {
+        id: "faturamento-modulo",
+        nome: "Faturamento",
+        descricao: "Gestão de faturamento e cobrança",
+        cor: "from-blue-500 to-blue-600",
+        corFundo: "bg-blue-50",
+        icone: "💰",
+        funcoes: [
+          {
+            id: "conhecimento-faturamento",
+            nome: "Conhecimento de Faturamento (L1)",
+            descricao: "Estrutura de faturamento e cobrança",
+            cor: "bg-blue-100 border-blue-300",
+            corFundo: "bg-blue-50",
+            recursos: [
+              {
+                nome: "Reclamacao",
+                descricao: "Reclamação/fatura de serviço",
+                versaoFhir: "R4/R5",
+                exemplos: ["Fatura de internação"],
+              },
+            ],
+            microsservico: undefined
+          },
+        ],
+      },
+      {
+        id: "administrativo-modulo",
+        nome: "Administrativo",
+        descricao: "Gestão administrativa e organizacional",
+        cor: "from-indigo-500 to-indigo-600",
+        corFundo: "bg-indigo-50",
+        icone: "🏢",
+        funcoes: [
+          {
+            id: "conhecimento-administrativo",
+            nome: "Conhecimento Administrativo (L1)",
+            descricao: "Estrutura organizacional e administrativa",
+            cor: "bg-indigo-100 border-indigo-300",
+            corFundo: "bg-indigo-50",
+            recursos: [
+              {
+                nome: "Organizacao",
+                descricao: "Organização/Hospital",
+                versaoFhir: "R4/R5",
+                exemplos: ["Hospital São Paulo"],
+              },
+            ],
+            microsservico: undefined
           },
         ],
       },
