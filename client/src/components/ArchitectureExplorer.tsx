@@ -14,7 +14,7 @@ export function ArchitectureExplorer() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-slate-800 mb-1">Explorador de Arquitetura FHIR</h1>
+          <h1 className="text-3xl font-bold text-slate-800 mb-1">Mapa de Arquitetura Lazarus</h1>
           <p className="text-sm text-slate-600">
             Estrutura FHIR HL7 em camadas funcionais (L0, L1, L2)
           </p>
