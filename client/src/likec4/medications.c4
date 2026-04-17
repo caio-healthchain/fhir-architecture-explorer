@@ -1,0 +1,248 @@
+// ============================================================================
+// ms-core-medications-catalog - Catálogo de Medicamentos (FHIR-first)
+// Domínio: Core Foundation - Medicamentos
+// Namespace AKS: core-medications
+// Schema PostgreSQL: core_medications
+// ============================================================================
+
+specification {
+  element actor {
+    style {
+      shape person
+      color primary
+    }
+  }
+
+  element system {
+    style {
+      shape rectangle
+      color primary
+    }
+  }
+
+  element service {
+    style {
+      shape component
+      color secondary
+    }
+  }
+
+  element database {
+    style {
+      shape storage
+      color muted
+    }
+  }
+
+  element connector {
+    style {
+      shape rectangle
+      color amber
+    }
+  }
+
+  element cache {
+    style {
+      shape cylinder
+      color secondary
+    }
+  }
+
+  relationship sync {
+    line solid
+  }
+
+  relationship async {
+    line dotted
+  }
+}
+
+model {
+  // Atores externos
+  anvisa = actor 'ANVISA' {
+    description 'Agência Nacional de Vigilância Sanitária - Fornecedor de dados CMED'
+  }
+
+  lab = actor 'Laboratório' {
+    description 'Fornecedor de medicamentos e informações técnicas'
+  }
+
+  pharmacy = actor 'Farmácia' {
+    description 'Consumidor final de dados de medicamentos'
+  }
+
+  // Sistema principal
+  meds_system = system 'ms-core-medications-catalog' {
+    description 'Catálogo centralizado de medicamentos com padrão FHIR R4/R5'
+
+    // Camada de Ingresso
+    rest_api = service 'REST API' {
+      description 'Endpoints FHIR para operações de medicamentos'
+      technology 'Spring Boot + Spring Web'
+    }
+
+    agent_worker = service 'Agent Worker' {
+      description 'Processador de importação CMED em background'
+      technology 'Spring Batch'
+    }
+
+    mcp_server = service 'MCP Server' {
+      description 'Model Context Protocol Server para integração com agentes IA'
+      technology 'Spring Boot + SSE'
+    }
+
+    // Camada de Serviço
+    medication_service = service 'MedicationService' {
+      description 'Lógica de negócio para medicamentos FHIR'
+      technology 'Spring Service'
+    }
+
+    cmed_import_service = service 'CmedImportService' {
+      description 'Orquestração de importação e validação CMED'
+      technology 'Spring Service'
+    }
+
+    validation_service = service 'ValidationService' {
+      description 'Validação de conformidade FHIR e dados'
+      technology 'Spring Service'
+    }
+
+    // Camada de Persistência
+    postgres_db = database 'PostgreSQL' {
+      description 'Banco de dados principal (schema: core_medications)'
+      technology 'PostgreSQL 15+'
+    }
+
+    redis_cache = cache 'Redis Cache' {
+      description 'Cache distribuído para medicamentos frequentes'
+      technology 'Redis 7+'
+    }
+
+    // Conectores Externos
+    anvisa_connector = connector 'ANVISA Connector' {
+      description 'Download e sincronização de dados CMED'
+      technology 'REST API + SFTP'
+    }
+
+    lab_connector = connector 'Laboratory Connector' {
+      description 'Integração com sistemas de laboratório'
+      technology 'REST API'
+    }
+
+    pharmacy_connector = connector 'Pharmacy Connector' {
+      description 'Distribuição de dados para farmácias'
+      technology 'REST API + Webhooks'
+    }
+
+    // Relacionamentos - Ingresso
+    rest_api -> medication_service 'consulta medicamentos'
+    agent_worker -> cmed_import_service 'inicia importação'
+    mcp_server -> medication_service 'queries FHIR'
+
+    // Relacionamentos - Serviços
+    medication_service -> postgres_db 'persiste medicamentos'
+    medication_service -> redis_cache 'cache read'
+    cmed_import_service -> validation_service 'valida dados'
+    validation_service -> postgres_db 'verifica conformidade'
+    cmed_import_service -> postgres_db 'insere dados'
+
+    // Relacionamentos - Saída
+    anvisa_connector -> postgres_db 'escreve dados CMED'
+    lab_connector -> medication_service 'consulta medicamentos'
+    pharmacy_connector -> medication_service 'consome dados'
+
+    // Relacionamentos externos
+    anvisa -> anvisa_connector 'fornece CMED'
+    anvisa_connector -> meds_system 'integração CMED'
+    lab -> lab_connector 'fornece dados'
+    lab_connector -> meds_system 'integração laboratório'
+    meds_system -> pharmacy_connector 'distribui dados'
+    pharmacy_connector -> pharmacy 'consome medicamentos'
+  }
+}
+
+views {
+  // Vista Landscape - Visão geral do sistema
+  view index {
+    title 'Landscape - ms-core-medications-catalog'
+    include *
+    style meds_system {
+      color green
+    }
+  }
+
+  // Vista de Containers - Componentes internos
+  view of meds_system {
+    title 'Containers - Arquitetura Interna'
+    include *
+    style meds_system {
+      color green
+    }
+    style rest_api {
+      color green
+    }
+    style agent_worker {
+      color green
+    }
+    style mcp_server {
+      color green
+    }
+    style medication_service {
+      color secondary
+    }
+    style cmed_import_service {
+      color secondary
+    }
+    style validation_service {
+      color secondary
+    }
+    style postgres_db {
+      color secondary
+    }
+    style redis_cache {
+      color secondary
+    }
+    style anvisa_connector {
+      color amber
+    }
+    style lab_connector {
+      color amber
+    }
+    style pharmacy_connector {
+      color amber
+    }
+  }
+
+  // Vista de Fluxo - Importação CMED
+  dynamic view cmed_import_flow {
+    title 'Fluxo - Importação CMED'
+    anvisa -> anvisa_connector 'publica CMED'
+    anvisa_connector -> agent_worker 'trigger importação'
+    agent_worker -> cmed_import_service 'inicia processamento'
+    cmed_import_service -> validation_service 'valida conformidade FHIR'
+    validation_service -> postgres_db 'escreve medicamentos'
+    postgres_db -> redis_cache 'invalida cache'
+  }
+
+  // Vista de Fluxo - Consulta de Medicamentos
+  dynamic view medication_query_flow {
+    title 'Fluxo - Consulta de Medicamentos'
+    pharmacy -> rest_api 'GET /fhir/Medication'
+    rest_api -> redis_cache 'busca cache'
+    redis_cache -> medication_service 'hit/miss'
+    medication_service -> postgres_db 'consulta dados'
+    postgres_db -> redis_cache 'escreve cache'
+    medication_service -> rest_api 'retorna FHIR'
+    rest_api -> pharmacy 'resposta JSON'
+  }
+
+  // Vista de Fluxo - MCP Integration
+  dynamic view mcp_integration_flow {
+    title 'Fluxo - MCP Integration com Agentes IA'
+    mcp_server -> medication_service 'queries FHIR'
+    medication_service -> postgres_db 'busca dados'
+    postgres_db -> medication_service 'retorna resultados'
+    medication_service -> mcp_server 'SSE stream'
+    mcp_server -> mcp_server 'agente IA consome'
+  }
+}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowLeft, Code2, Database, Zap, Eye, GitBranch } from "lucide-react";
 import { arquiteturaFhir, ModuloL1, FuncaoL2, RecursoFhir, Microsservico } from "@/data/fhirArchitecture";
+import { LikeC4MedicationsDiagram } from "./LikeC4MedicationsDiagram";
 
 export function ArchitectureExplorer() {
   const [selectedFunction, setSelectedFunction] = useState<FuncaoL2 | null>(null);
@@ -321,13 +322,17 @@ function ComponentDetailView({ component, onBack }: ComponentDetailViewProps) {
           <div className="bg-white rounded-lg border-2 border-purple-200 overflow-hidden shadow-sm">
             <div className="bg-purple-300 text-white p-3">
               <h3 className="text-base font-semibold flex items-center gap-2">
-                <Code2 className="w-4 h-4" /> Diagrama C3
+                <Code2 className="w-4 h-4" /> Diagrama C3 (LikeC4)
               </h3>
             </div>
-            <div className="p-6 bg-purple-50">
-              <div className="bg-white rounded-lg p-8 border-2 border-dashed border-slate-300 text-center">
-                <p className="text-slate-400 text-sm">Espaço para diagrama C3 (componentes internos)</p>
-              </div>
+            <div className="p-4 bg-purple-50 h-96">
+              {component.id === 'ms-core-medications-catalog' ? (
+                <LikeC4MedicationsDiagram />
+              ) : (
+                <div className="bg-white rounded-lg p-8 border-2 border-dashed border-slate-300 text-center h-full flex items-center justify-center">
+                  <p className="text-slate-400 text-sm">Diagrama LikeC4 em desenvolvimento para este microsserviço</p>
+                </div>
+              )}
             </div>
           </div>
 
