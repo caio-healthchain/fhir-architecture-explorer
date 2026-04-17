@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { fhirArchitecture, L1Module, L2Function } from "@/data/fhirArchitecture";
+import { arquiteturaFhir, ModuloL1, FuncaoL2, RecursoFhir } from "@/data/fhirArchitecture";
 
 export function ArchitectureExplorer() {
-  const [selectedFunction, setSelectedFunction] = useState<L2Function | null>(null);
+  const [selectedFunction, setSelectedFunction] = useState<FuncaoL2 | null>(null);
 
   if (selectedFunction) {
     return <FunctionDetailView function={selectedFunction} onBack={() => setSelectedFunction(null)} />;
@@ -22,36 +22,36 @@ export function ArchitectureExplorer() {
 
         {/* Todos os L0 Modules */}
         <div className="space-y-4">
-          {fhirArchitecture.map((layer) => (
+          {arquiteturaFhir.map((layer) => (
             <div key={layer.id} className="bg-white rounded-lg border-2 border-slate-300 overflow-hidden shadow-sm">
               {/* L0 Header */}
               <div className="bg-slate-400 text-white p-3 text-center">
-                <h2 className="text-lg font-semibold">{layer.name}</h2>
-                <p className="text-xs opacity-90">{layer.description}</p>
+                <h2 className="text-lg font-semibold">{layer.nome}</h2>
+                <p className="text-xs opacity-90">{layer.descricao}</p>
               </div>
 
               {/* L1 Modules Grid */}
               <div className="p-4 space-y-3">
-                {layer.modules.map((module: L1Module) => (
+                {layer.modulos.map((module: ModuloL1) => (
                   <div key={module.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                     {/* L1 Header */}
                     <div
-                      className={`bg-gradient-to-r ${module.color} text-white p-3 flex items-center gap-2`}
+                      className={`bg-gradient-to-r ${module.cor} text-white p-3 flex items-center gap-2`}
                       style={{
                         background: getModuleColor(module.id),
                       }}
                     >
-                      <span className="text-2xl">{module.icon}</span>
+                      <span className="text-2xl">{module.icone}</span>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-semibold leading-tight">{module.name}</h3>
-                        <p className="text-xs opacity-90 truncate">{module.description}</p>
+                        <h3 className="text-base font-semibold leading-tight">{module.nome}</h3>
+                        <p className="text-xs opacity-90 truncate">{module.descricao}</p>
                       </div>
                     </div>
 
                     {/* L2 Functions Grid */}
                     <div className="p-3 bg-slate-50">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {module.functions.map((func: L2Function) => (
+                        {module.funcoes.map((func: FuncaoL2) => (
                           <button
                             key={func.id}
                             onClick={() => setSelectedFunction(func)}
@@ -61,12 +61,12 @@ export function ArchitectureExplorer() {
                             }}
                           >
                             <h4 className="font-semibold text-slate-800 text-sm mb-1 leading-tight">
-                              {func.name}
+                              {func.nome}
                             </h4>
-                            <p className="text-xs text-slate-700 mb-2 line-clamp-2">{func.description}</p>
+                            <p className="text-xs text-slate-700 mb-2 line-clamp-2">{func.descricao}</p>
                             <div className="flex gap-1">
                               <span className="inline-block px-2 py-0.5 bg-white text-slate-700 text-xs rounded font-semibold border border-slate-200">
-                                {func.resources.length} FHIR
+                                {func.recursos.length} FHIR
                               </span>
                             </div>
                           </button>
@@ -85,7 +85,7 @@ export function ArchitectureExplorer() {
 }
 
 interface FunctionDetailViewProps {
-  function: L2Function;
+  function: FuncaoL2;
   onBack: () => void;
 }
 
@@ -103,8 +103,8 @@ function FunctionDetailView({ function: func, onBack }: FunctionDetailViewProps)
             Voltar ao Mapa
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">{func.name}</h1>
-            <p className="text-sm text-slate-600 mt-1">{func.description}</p>
+            <h1 className="text-3xl font-bold text-slate-800">{func.nome}</h1>
+            <p className="text-sm text-slate-600 mt-1">{func.descricao}</p>
           </div>
         </div>
 
@@ -119,20 +119,20 @@ function FunctionDetailView({ function: func, onBack }: FunctionDetailViewProps)
             </div>
             <div className="p-4 bg-blue-50">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {func.resources.map((resource, idx) => (
+                {func.recursos.map((resource: RecursoFhir, idx: number) => (
                   <div key={idx} className="p-3 bg-white rounded-lg border border-blue-200">
-                    <h4 className="font-semibold text-slate-800 text-sm mb-1">{resource.name}</h4>
-                    <p className="text-xs text-slate-700 mb-2">{resource.description}</p>
+                    <h4 className="font-semibold text-slate-800 text-sm mb-1">{resource.nome}</h4>
+                    <p className="text-xs text-slate-700 mb-2">{resource.descricao}</p>
                     <div className="flex gap-2 flex-wrap mb-2">
                       <span className="inline-block px-2 py-0.5 bg-blue-200 text-blue-800 text-xs rounded font-mono font-semibold">
-                        {resource.fhirVersion}
+                        {resource.versaoFhir}
                       </span>
                     </div>
-                    {resource.examples && resource.examples.length > 0 && (
+                    {resource.exemplos && resource.exemplos.length > 0 && (
                       <div className="mt-2 pt-2 border-t border-blue-200">
                         <p className="text-xs font-semibold text-slate-700 mb-1">Exemplos:</p>
                         <ul className="space-y-0.5">
-                          {resource.examples.map((example, i) => (
+                          {resource.exemplos.map((example: string, i: number) => (
                             <li key={i} className="text-xs text-slate-600 flex gap-1">
                               <span className="text-blue-600">•</span>
                               <span>{example}</span>
@@ -197,7 +197,7 @@ function FunctionDetailView({ function: func, onBack }: FunctionDetailViewProps)
               <div className="bg-white rounded-lg p-4 border border-slate-300 font-mono text-xs overflow-x-auto">
                 <pre className="text-slate-700">
 {`GET /fhir/${func.id}
-  Descrição: ${func.description}
+  Descrição: ${func.descricao}
   
 POST /fhir/${func.id}
   Descrição: Criar novo recurso
@@ -235,32 +235,32 @@ DELETE /fhir/${func.id}/{{id}}
 // Helper functions para cores pastosas
 function getModuleColor(moduleId: string): string {
   const colors: Record<string, string> = {
-    "medications-module": "#a8d5ba", // verde pastel
-    "materials-devices-module": "#f4c9a8", // laranja pastel
-    "procedures-module": "#d4a5d4", // roxo pastel
-    "diagnostics-module": "#f4a8a8", // rosa pastel
-    "financial-module": "#a8c9f4", // azul pastel
-    "administrative-module": "#a8d5d4", // cyan pastel
-    "clinical-module": "#c9a8f4", // roxo pastel
-    "devices-module": "#f4c9a8", // laranja pastel
-    "terminology-module": "#f4e8a8", // amarelo pastel
-    "infrastructure-module": "#d4d4d4", // cinza pastel
+    "medicamentos-modulo": "#a8d5ba", // verde pastel
+    "dispositivos-modulo": "#f4c9a8", // laranja pastel
+    "diagnosticos-modulo": "#d4a5d4", // roxo pastel
+    "faturamento-modulo": "#f4a8a8", // rosa pastel
+    "administrativo-modulo": "#a8c9f4", // azul pastel
+    "clinico-modulo": "#a8d5d4", // cyan pastel
+    "terminologias": "#c9a8f4", // roxo pastel
+    "seguranca-privacidade": "#f4c9a8", // laranja pastel
+    "conformidade": "#f4e8a8", // amarelo pastel
+    "infraestrutura": "#d4d4d4", // cinza pastel
   };
   return colors[moduleId] || "#c9a8f4";
 }
 
 function getPastelColor(moduleId: string): string {
   const colors: Record<string, string> = {
-    "medications-module": "#e8f5e9", // verde muito claro
-    "materials-devices-module": "#fff3e0", // laranja muito claro
-    "procedures-module": "#f3e5f5", // roxo muito claro
-    "diagnostics-module": "#ffe0e0", // rosa muito claro
-    "financial-module": "#e3f2fd", // azul muito claro
-    "administrative-module": "#e0f2f1", // cyan muito claro
-    "clinical-module": "#f3e5f5", // roxo muito claro
-    "devices-module": "#fff3e0", // laranja muito claro
-    "terminology-module": "#fffde7", // amarelo muito claro
-    "infrastructure-module": "#f5f5f5", // cinza muito claro
+    "medicamentos-modulo": "#e8f5e9", // verde muito claro
+    "dispositivos-modulo": "#fff3e0", // laranja muito claro
+    "diagnosticos-modulo": "#f3e5f5", // roxo muito claro
+    "faturamento-modulo": "#ffe0e0", // rosa muito claro
+    "administrativo-modulo": "#e3f2fd", // azul muito claro
+    "clinico-modulo": "#e0f2f1", // cyan muito claro
+    "terminologias": "#f3e5f5", // roxo muito claro
+    "seguranca-privacidade": "#fff3e0", // laranja muito claro
+    "conformidade": "#fffde7", // amarelo muito claro
+    "infraestrutura": "#f5f5f5", // cinza muito claro
   };
   return colors[moduleId] || "#f3e5f5";
 }
