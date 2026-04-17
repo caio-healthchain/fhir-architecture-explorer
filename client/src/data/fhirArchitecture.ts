@@ -1,8 +1,52 @@
+// ============================================
+// TIPOS E INTERFACES
+// ============================================
+
 export interface RecursoFhir {
   nome: string;
   descricao: string;
   versaoFhir: string;
   exemplos?: string[];
+}
+
+export interface Componente {
+  id: string;
+  tipo: 'api' | 'agente' | 'miniapp' | 'database' | 'eventbroker' | 'conector';
+  nome: string;
+  descricao: string;
+  tecnologia?: string;
+}
+
+export interface SwaggerEndpoint {
+  metodo: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  caminho: string;
+  descricao: string;
+  parametros?: string[];
+  resposta?: string;
+}
+
+export interface Observabilidade {
+  logs: string;
+  metricas: string;
+  traces: string;
+}
+
+export interface DataLineage {
+  origem: string;
+  destino: string;
+  tipo: string;
+}
+
+export interface Microsservico {
+  id: string;
+  nome: string;
+  descricao: string;
+  namespace: string;
+  schema: string;
+  componentes: Componente[];
+  swagger: SwaggerEndpoint[];
+  observabilidade: Observabilidade;
+  dataLineage: DataLineage[];
 }
 
 export interface FuncaoL2 {
@@ -12,6 +56,7 @@ export interface FuncaoL2 {
   recursos: RecursoFhir[];
   cor: string;
   corFundo: string;
+  microsservico?: Microsservico;
 }
 
 export interface ModuloL1 {
@@ -30,6 +75,145 @@ export interface CamadaL0 {
   descricao: string;
   modulos: ModuloL1[];
 }
+
+// ============================================
+// MICROSSERVIÇOS
+// ============================================
+
+export const msCoreTerminologies: Microsservico = {
+  id: 'ms-core-terminologies',
+  nome: 'ms-core-terminologies',
+  descricao: 'Gerenciamento de sistemas de codificação, conjuntos de valores e mapeamento de conceitos',
+  namespace: 'ns-core-terminologies',
+  schema: 'core_terminologies',
+  componentes: [
+    {
+      id: 'api-terminologies',
+      tipo: 'api',
+      nome: 'API FHIR Terminologies',
+      descricao: 'Endpoints RESTful para CodeSystem, ValueSet, ConceptMap',
+      tecnologia: 'Spring Boot 3.0'
+    },
+    {
+      id: 'db-terminologies',
+      tipo: 'database',
+      nome: 'PostgreSQL - Terminologies',
+      descricao: 'Schema core_terminologies com tabelas de codificação',
+      tecnologia: 'PostgreSQL 15'
+    },
+    {
+      id: 'cache-terminologies',
+      tipo: 'agente',
+      nome: 'Redis Cache',
+      descricao: 'Cache distribuído para CodeSystems frequentes',
+      tecnologia: 'Redis 7'
+    }
+  ],
+  swagger: [
+    {
+      metodo: 'GET',
+      caminho: '/fhir/CodeSystem',
+      descricao: 'Listar todos os sistemas de codificação',
+      resposta: 'Bundle de CodeSystem'
+    },
+    {
+      metodo: 'GET',
+      caminho: '/fhir/CodeSystem/{id}',
+      descricao: 'Obter um sistema de codificação específico',
+      parametros: ['id'],
+      resposta: 'CodeSystem'
+    },
+    {
+      metodo: 'GET',
+      caminho: '/fhir/ValueSet',
+      descricao: 'Listar todos os conjuntos de valores',
+      resposta: 'Bundle de ValueSet'
+    }
+  ],
+  observabilidade: {
+    logs: 'Stackdriver Logging - /logs/ms-core-terminologies',
+    metricas: 'Prometheus - Port 9090',
+    traces: 'Jaeger - Port 16686'
+  },
+  dataLineage: [
+    { origem: 'ANVISA', destino: 'core_terminologies.codesystems', tipo: 'import' },
+    { origem: 'core_terminologies', destino: 'ms-core-medications-catalog', tipo: 'reference' }
+  ]
+};
+
+export const msCoreMedicationsCatalog: Microsservico = {
+  id: 'ms-core-medications-catalog',
+  nome: 'ms-core-medications-catalog',
+  descricao: 'Catálogo de medicamentos CMED com definições, preços e conformidade FHIR',
+  namespace: 'ns-core-medications',
+  schema: 'core_medications',
+  componentes: [
+    {
+      id: 'api-medications',
+      tipo: 'api',
+      nome: 'API FHIR Medications',
+      descricao: 'Endpoints RESTful para MedicinalProductDefinition, Medication',
+      tecnologia: 'Spring Boot 3.0'
+    },
+    {
+      id: 'db-medications',
+      tipo: 'database',
+      nome: 'PostgreSQL - Medications',
+      descricao: 'Schema core_medications com tabela CMED',
+      tecnologia: 'PostgreSQL 15'
+    },
+    {
+      id: 'worker-cmed-import',
+      tipo: 'agente',
+      nome: 'Worker CMED Import',
+      descricao: 'Importa tabela CMED mensalmente da ANVISA',
+      tecnologia: 'Node.js + Bull Queue'
+    },
+    {
+      id: 'conector-anvisa',
+      tipo: 'conector',
+      nome: 'Conector ANVISA',
+      descricao: 'Integração com API/Portal da ANVISA para download CMED',
+      tecnologia: 'REST Client'
+    }
+  ],
+  swagger: [
+    {
+      metodo: 'GET',
+      caminho: '/fhir/MedicinalProductDefinition',
+      descricao: 'Listar medicamentos do catálogo CMED',
+      parametros: ['name', 'laboratory', 'ean'],
+      resposta: 'Bundle de MedicinalProductDefinition'
+    },
+    {
+      metodo: 'GET',
+      caminho: '/fhir/MedicinalProductDefinition/{id}',
+      descricao: 'Obter medicamento específico',
+      parametros: ['id'],
+      resposta: 'MedicinalProductDefinition com preços e composição'
+    },
+    {
+      metodo: 'GET',
+      caminho: '/fhir/Medication',
+      descricao: 'Listar medicamentos (versão simplificada)',
+      resposta: 'Bundle de Medication'
+    }
+  ],
+  observabilidade: {
+    logs: 'Stackdriver Logging - /logs/ms-core-medications-catalog',
+    metricas: 'Prometheus - Port 9091 (medicamentos importados, tempo de resposta)',
+    traces: 'Jaeger - Port 16686 (rastreamento de requisições)'
+  },
+  dataLineage: [
+    { origem: 'ANVISA CMED', destino: 'core_medications.medicamentos', tipo: 'import' },
+    { origem: 'core_medications', destino: 'ms-clinical-prescriptions', tipo: 'reference' },
+    { origem: 'core_medications', destino: 'ms-financial-claims', tipo: 'reference' }
+  ]
+};
+
+// ============================================
+// ARQUITETURA FHIR
+// ============================================
 
 export const arquiteturaFhir: CamadaL0[] = [
   {
@@ -59,6 +243,7 @@ export const arquiteturaFhir: CamadaL0[] = [
                 exemplos: ["CID-10", "TISS", "TUSS"],
               },
             ],
+            microsservico: msCoreTerminologies
           },
           {
             id: "valuesets",
@@ -74,6 +259,7 @@ export const arquiteturaFhir: CamadaL0[] = [
                 exemplos: ["Tipos de procedimento"],
               },
             ],
+            microsservico: msCoreTerminologies
           },
           {
             id: "conceptmaps",
@@ -89,89 +275,7 @@ export const arquiteturaFhir: CamadaL0[] = [
                 exemplos: ["CID-10 → SNOMED"],
               },
             ],
-          },
-        ],
-      },
-      {
-        id: "seguranca-privacidade",
-        nome: "Segurança & Privacidade",
-        descricao: "Controle de acesso, consentimento e auditoria",
-        cor: "from-gray-600 to-gray-700",
-        corFundo: "bg-gray-50",
-        icone: "🔐",
-        funcoes: [
-          {
-            id: "consentimento-privacidade",
-            nome: "Consentimento & Privacidade (L2)",
-            descricao: "Consentimento e privacidade do paciente",
-            cor: "bg-gray-100 border-gray-300",
-            corFundo: "bg-gray-50",
-            recursos: [
-              {
-                nome: "Consentimento",
-                descricao: "Consentimento do paciente",
-                versaoFhir: "R4/R5",
-                exemplos: ["LGPD", "Privacidade"],
-              },
-            ],
-          },
-          {
-            id: "auditoria-rastreabilidade",
-            nome: "Auditoria & Rastreabilidade (L2)",
-            descricao: "Rastreabilidade e auditoria",
-            cor: "bg-gray-100 border-gray-300",
-            corFundo: "bg-gray-50",
-            recursos: [
-              {
-                nome: "EventoAuditoria",
-                descricao: "Evento de auditoria",
-                versaoFhir: "R4/R5",
-                exemplos: ["Log de acesso"],
-              },
-              {
-                nome: "Proveniência",
-                descricao: "Rastreabilidade de dados",
-                versaoFhir: "R4/R5",
-                exemplos: ["Quem fez o quê"],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "conformidade",
-        nome: "Conformidade",
-        descricao: "Perfis e conformidade de implementação",
-        cor: "from-indigo-600 to-indigo-700",
-        corFundo: "bg-indigo-50",
-        icone: "✅",
-        funcoes: [
-          {
-            id: "perfis-conformidade",
-            nome: "Perfis & Conformidade (L2)",
-            descricao: "Definição de perfis FHIR",
-            cor: "bg-indigo-100 border-indigo-300",
-            corFundo: "bg-indigo-50",
-            recursos: [
-              {
-                nome: "DefinicaoEstrutura",
-                descricao: "Definição de perfil FHIR",
-                versaoFhir: "R4/R5",
-                exemplos: ["Perfil customizado"],
-              },
-              {
-                nome: "DeclaracaoCapacidade",
-                descricao: "Capacidades do servidor",
-                versaoFhir: "R4/R5",
-                exemplos: ["API disponível"],
-              },
-              {
-                nome: "GuiaImplementacao",
-                descricao: "Guia de implementação",
-                versaoFhir: "R4/R5",
-                exemplos: ["Documentação"],
-              },
-            ],
+            microsservico: msCoreTerminologies
           },
         ],
       },
@@ -204,30 +308,13 @@ export const arquiteturaFhir: CamadaL0[] = [
                 exemplos: ["Dipirona 500mg", "Amoxicilina 500mg"],
               },
               {
-                nome: "DefinicaoProdutoEmbalado",
-                descricao: "Embalagem do medicamento",
-                versaoFhir: "R4/R5",
-                exemplos: ["Blister com 10 comprimidos"],
-              },
-              {
-                nome: "Ingrediente",
-                descricao: "Ingredientes do medicamento",
-                versaoFhir: "R4/R5",
-                exemplos: ["Dipirona monoidratada"],
-              },
-              {
-                nome: "DefinicaoSubstancia",
-                descricao: "Definição da substância ativa",
-                versaoFhir: "R4/R5",
-                exemplos: ["Paracetamol"],
-              },
-              {
                 nome: "Medicamento",
                 descricao: "Medicamento (versão simplificada)",
                 versaoFhir: "R4/R5",
                 exemplos: ["Medicamento genérico"],
               },
             ],
+            microsservico: msCoreMedicationsCatalog
           },
           {
             id: "prescricao-dispensacao",
@@ -248,546 +335,8 @@ export const arquiteturaFhir: CamadaL0[] = [
                 versaoFhir: "R4/R5",
                 exemplos: ["Entrega na farmácia"],
               },
-              {
-                nome: "AdministracaoMedicamento",
-                descricao: "Administração do medicamento",
-                versaoFhir: "R4/R5",
-                exemplos: ["Aplicação em enfermaria"],
-              },
-              {
-                nome: "DeclaracaoMedicamento",
-                descricao: "Declaração de uso de medicamento",
-                versaoFhir: "R4/R5",
-                exemplos: ["Histórico de medicamentos"],
-              },
             ],
-          },
-          {
-            id: "vacinacao",
-            nome: "Vacinação (L1)",
-            descricao: "Gerenciamento de vacinações",
-            cor: "bg-green-100 border-green-300",
-            corFundo: "bg-green-50",
-            recursos: [
-              {
-                nome: "Vacinacao",
-                descricao: "Registro de vacinação",
-                versaoFhir: "R4/R5",
-                exemplos: ["Vacina COVID-19"],
-              },
-              {
-                nome: "AvaliacaoVacinacao",
-                descricao: "Avaliação de cobertura vacinal",
-                versaoFhir: "R4/R5",
-                exemplos: ["Verificação de imunidade"],
-              },
-              {
-                nome: "RecomendacaoVacinacao",
-                descricao: "Recomendação de vacinação",
-                versaoFhir: "R4/R5",
-                exemplos: ["Próxima dose recomendada"],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "clinico-modulo",
-        nome: "Clínico",
-        descricao: "Dados clínicos e atendimento",
-        cor: "from-blue-500 to-blue-600",
-        corFundo: "bg-blue-50",
-        icone: "🏥",
-        funcoes: [
-          {
-            id: "paciente-dados-demograficos",
-            nome: "Paciente & Dados Demográficos (L1)",
-            descricao: "Dados demográficos e identificação",
-            cor: "bg-blue-100 border-blue-300",
-            corFundo: "bg-blue-50",
-            recursos: [
-              {
-                nome: "Paciente",
-                descricao: "Dados do paciente",
-                versaoFhir: "R4/R5",
-                exemplos: ["Nome, CPF, data de nascimento"],
-              },
-              {
-                nome: "PessoaRelacionada",
-                descricao: "Pessoa relacionada ao paciente",
-                versaoFhir: "R4/R5",
-                exemplos: ["Responsável, familiar"],
-              },
-              {
-                nome: "Pessoa",
-                descricao: "Pessoa genérica",
-                versaoFhir: "R4/R5",
-                exemplos: ["Registro de pessoa"],
-              },
-            ],
-          },
-          {
-            id: "encontro-visitas",
-            nome: "Encontro & Visitas (L1)",
-            descricao: "Registro de encontros/visitas",
-            cor: "bg-blue-100 border-blue-300",
-            corFundo: "bg-blue-50",
-            recursos: [
-              {
-                nome: "Encontro",
-                descricao: "Encontro clínico (internação, consulta)",
-                versaoFhir: "R4/R5",
-                exemplos: ["Internação hospitalar"],
-              },
-              {
-                nome: "EpisodioAtendimento",
-                descricao: "Série de encontros relacionados",
-                versaoFhir: "R4/R5",
-                exemplos: ["Tratamento de diabetes"],
-              },
-              {
-                nome: "Localizacao",
-                descricao: "Local do atendimento",
-                versaoFhir: "R4/R5",
-                exemplos: ["Leito 101, Enfermaria A"],
-              },
-            ],
-          },
-          {
-            id: "condicoes-diagnosticos",
-            nome: "Condições & Diagnósticos (L1)",
-            descricao: "Diagnósticos e condições clínicas",
-            cor: "bg-blue-100 border-blue-300",
-            corFundo: "bg-blue-50",
-            recursos: [
-              {
-                nome: "Condicao",
-                descricao: "Diagnóstico ou condição clínica",
-                versaoFhir: "R4/R5",
-                exemplos: ["Hipertensão, Diabetes"],
-              },
-              {
-                nome: "Observacao",
-                descricao: "Observação clínica",
-                versaoFhir: "R4/R5",
-                exemplos: ["Pressão arterial, Temperatura"],
-              },
-              {
-                nome: "HistoricoFamiliar",
-                descricao: "Histórico familiar",
-                versaoFhir: "R4/R5",
-                exemplos: ["Câncer na família"],
-              },
-            ],
-          },
-          {
-            id: "procedimentos-servicos",
-            nome: "Procedimentos & Serviços (L1)",
-            descricao: "Procedimentos e serviços prestados",
-            cor: "bg-blue-100 border-blue-300",
-            corFundo: "bg-blue-50",
-            recursos: [
-              {
-                nome: "Procedimento",
-                descricao: "Procedimento realizado",
-                versaoFhir: "R4/R5",
-                exemplos: ["Cirurgia, Punção"],
-              },
-              {
-                nome: "SolicitacaoServico",
-                descricao: "Solicitação de serviço",
-                versaoFhir: "R4/R5",
-                exemplos: ["Solicitação de exame"],
-              },
-              {
-                nome: "DefinicaoAtividade",
-                descricao: "Definição de atividade/procedimento",
-                versaoFhir: "R4/R5",
-                exemplos: ["Protocolo de procedimento"],
-              },
-            ],
-          },
-          {
-            id: "observacoes-resultados",
-            nome: "Observações & Resultados (L1)",
-            descricao: "Observações clínicas e resultados",
-            cor: "bg-blue-100 border-blue-300",
-            corFundo: "bg-blue-50",
-            recursos: [
-              {
-                nome: "Observacao",
-                descricao: "Observação clínica",
-                versaoFhir: "R4/R5",
-                exemplos: ["Resultado de exame"],
-              },
-              {
-                nome: "RelatorioDiagnostico",
-                descricao: "Relatório diagnóstico",
-                versaoFhir: "R4/R5",
-                exemplos: ["Resultado de laboratorio"],
-              },
-              {
-                nome: "DefinicaoAmostra",
-                descricao: "Definição de amostra",
-                versaoFhir: "R4/R5",
-                exemplos: ["Sangue, Urina"],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "dispositivos-modulo",
-        nome: "Dispositivos & Materiais",
-        descricao: "OPME e dispositivos médicos",
-        cor: "from-orange-500 to-orange-600",
-        corFundo: "bg-orange-50",
-        icone: "🏥",
-        funcoes: [
-          {
-            id: "conhecimento-dispositivos",
-            nome: "Conhecimento de Dispositivos (L1)",
-            descricao: "Catálogo de dispositivos e materiais",
-            cor: "bg-orange-100 border-orange-300",
-            corFundo: "bg-orange-50",
-            recursos: [
-              {
-                nome: "DefinicaoDispositivo",
-                descricao: "Definição de dispositivo (TUSS 19)",
-                versaoFhir: "R4/R5",
-                exemplos: ["Cateter, Agulha"],
-              },
-              {
-                nome: "DefinicaoItemFabricado",
-                descricao: "Item manufaturado",
-                versaoFhir: "R4/R5",
-                exemplos: ["Produto final"],
-              },
-              {
-                nome: "DefinicaoAmostra",
-                descricao: "Definição de amostra",
-                versaoFhir: "R4/R5",
-                exemplos: ["Tipo de coleta"],
-              },
-            ],
-          },
-          {
-            id: "uso-dispositivos",
-            nome: "Uso de Dispositivos (L1)",
-            descricao: "Utilização de dispositivos",
-            cor: "bg-orange-100 border-orange-300",
-            corFundo: "bg-orange-50",
-            recursos: [
-              {
-                nome: "Dispositivo",
-                descricao: "Instância de dispositivo",
-                versaoFhir: "R4/R5",
-                exemplos: ["Cateter específico"],
-              },
-              {
-                nome: "UsoDispositivo",
-                descricao: "Uso do dispositivo",
-                versaoFhir: "R4/R5",
-                exemplos: ["Aplicação em paciente"],
-              },
-              {
-                nome: "MetricaDispositivo",
-                descricao: "Métrica do dispositivo",
-                versaoFhir: "R4/R5",
-                exemplos: ["Medições"],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "diagnosticos-modulo",
-        nome: "Diagnósticos",
-        descricao: "Exames, testes e resultados",
-        cor: "from-purple-500 to-purple-600",
-        corFundo: "bg-purple-50",
-        icone: "🔬",
-        funcoes: [
-          {
-            id: "conhecimento-diagnosticos",
-            nome: "Conhecimento de Diagnósticos (L1)",
-            descricao: "Catálogo de exames e testes",
-            cor: "bg-purple-100 border-purple-300",
-            corFundo: "bg-purple-50",
-            recursos: [
-              {
-                nome: "DefinicaoAtividade",
-                descricao: "Definição de exame (TUSS 22)",
-                versaoFhir: "R4/R5",
-                exemplos: ["Hemograma, Tomografia"],
-              },
-              {
-                nome: "DefinicaoPlan",
-                descricao: "Plano de diagnóstico",
-                versaoFhir: "R4/R5",
-                exemplos: ["Protocolo de exame"],
-              },
-              {
-                nome: "DefinicaoAmostra",
-                descricao: "Definição de amostra",
-                versaoFhir: "R4/R5",
-                exemplos: ["Sangue, Saliva"],
-              },
-            ],
-          },
-          {
-            id: "execucao-diagnosticos",
-            nome: "Execução de Diagnósticos (L1)",
-            descricao: "Solicitação e execução de exames",
-            cor: "bg-purple-100 border-purple-300",
-            corFundo: "bg-purple-50",
-            recursos: [
-              {
-                nome: "SolicitacaoServico",
-                descricao: "Solicitação de exame",
-                versaoFhir: "R4/R5",
-                exemplos: ["Pedido de hemograma"],
-              },
-              {
-                nome: "Amostra",
-                descricao: "Amostra coletada",
-                versaoFhir: "R4/R5",
-                exemplos: ["Amostra de sangue"],
-              },
-              {
-                nome: "RelatorioDiagnostico",
-                descricao: "Resultado do exame",
-                versaoFhir: "R4/R5",
-                exemplos: ["Laudo"],
-              },
-              {
-                nome: "Observacao",
-                descricao: "Observação do resultado",
-                versaoFhir: "R4/R5",
-                exemplos: ["Valor medido"],
-              },
-            ],
-          },
-          {
-            id: "imagens",
-            nome: "Imagens (L1)",
-            descricao: "Exames de imagem",
-            cor: "bg-purple-100 border-purple-300",
-            corFundo: "bg-purple-50",
-            recursos: [
-              {
-                nome: "EstudoImagem",
-                descricao: "Estudo de imagem",
-                versaoFhir: "R4/R5",
-                exemplos: ["Tomografia, Ressonância"],
-              },
-              {
-                nome: "SelecaoImagem",
-                descricao: "Seleção de imagens",
-                versaoFhir: "R4/R5",
-                exemplos: ["Imagens relevantes"],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "faturamento-modulo",
-        nome: "Faturamento",
-        descricao: "Guias, contas e pagamentos",
-        cor: "from-red-500 to-red-600",
-        corFundo: "bg-red-50",
-        icone: "💰",
-        funcoes: [
-          {
-            id: "guias-faturamento",
-            nome: "Guias & Faturamento (L1)",
-            descricao: "Geração e processamento de guias",
-            cor: "bg-red-100 border-red-300",
-            corFundo: "bg-red-50",
-            recursos: [
-              {
-                nome: "Guia",
-                descricao: "Guia/fatura (TISS)",
-                versaoFhir: "R4/R5",
-                exemplos: ["Guia de internação"],
-              },
-              {
-                nome: "RespostaGuia",
-                descricao: "Resposta da operadora",
-                versaoFhir: "R4/R5",
-                exemplos: ["Aprovação/rejeição"],
-              },
-              {
-                nome: "Fatura",
-                descricao: "Fatura",
-                versaoFhir: "R4/R5",
-                exemplos: ["Nota fiscal"],
-              },
-              {
-                nome: "ItemCobranca",
-                descricao: "Item de cobrança",
-                versaoFhir: "R4/R5",
-                exemplos: ["Procedimento cobrado"],
-              },
-            ],
-          },
-          {
-            id: "cobertura-elegibilidade",
-            nome: "Cobertura & Elegibilidade (L1)",
-            descricao: "Planos de saúde e cobertura",
-            cor: "bg-red-100 border-red-300",
-            corFundo: "bg-red-50",
-            recursos: [
-              {
-                nome: "Cobertura",
-                descricao: "Plano de saúde",
-                versaoFhir: "R4/R5",
-                exemplos: ["Plano de saúde"],
-              },
-              {
-                nome: "SolicitacaoElegibilidadeCobertura",
-                descricao: "Verificação de elegibilidade",
-                versaoFhir: "R4/R5",
-                exemplos: ["Verificação de cobertura"],
-              },
-              {
-                nome: "RespostaElegibilidadeCobertura",
-                descricao: "Resposta de elegibilidade",
-                versaoFhir: "R4/R5",
-                exemplos: ["Resultado da verificação"],
-              },
-            ],
-          },
-          {
-            id: "contas-pagamentos",
-            nome: "Contas & Pagamentos (L1)",
-            descricao: "Gestão de contas e pagamentos",
-            cor: "bg-red-100 border-red-300",
-            corFundo: "bg-red-50",
-            recursos: [
-              {
-                nome: "Conta",
-                descricao: "Conta do paciente",
-                versaoFhir: "R4/R5",
-                exemplos: ["Saldo devedor"],
-              },
-              {
-                nome: "AvisoPagamento",
-                descricao: "Notificação de pagamento",
-                versaoFhir: "R4/R5",
-                exemplos: ["Aviso de pagamento"],
-              },
-              {
-                nome: "ReconciliacaoPagamento",
-                descricao: "Reconciliação de pagamento",
-                versaoFhir: "R4/R5",
-                exemplos: ["Confirmação de recebimento"],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "administrativo-modulo",
-        nome: "Administrativo",
-        descricao: "Organização, agendamento e comunicação",
-        cor: "from-cyan-500 to-cyan-600",
-        corFundo: "bg-cyan-50",
-        icone: "📋",
-        funcoes: [
-          {
-            id: "organizacao-papeis",
-            nome: "Organização & Papéis (L1)",
-            descricao: "Estrutura organizacional",
-            cor: "bg-cyan-100 border-cyan-300",
-            corFundo: "bg-cyan-50",
-            recursos: [
-              {
-                nome: "Organizacao",
-                descricao: "Organização/hospital",
-                versaoFhir: "R4/R5",
-                exemplos: ["Hospital São Paulo"],
-              },
-              {
-                nome: "AfiliacaoOrganizacional",
-                descricao: "Afiliação organizacional",
-                versaoFhir: "R4/R5",
-                exemplos: ["Filial, Parceria"],
-              },
-              {
-                nome: "Profissional",
-                descricao: "Profissional de saúde",
-                versaoFhir: "R4/R5",
-                exemplos: ["Médico, Enfermeiro"],
-              },
-              {
-                nome: "PapelProfissional",
-                descricao: "Papel do profissional",
-                versaoFhir: "R4/R5",
-                exemplos: ["Cardiologista"],
-              },
-            ],
-          },
-          {
-            id: "agendamento",
-            nome: "Agendamento (L1)",
-            descricao: "Agendamento de consultas",
-            cor: "bg-cyan-100 border-cyan-300",
-            corFundo: "bg-cyan-50",
-            recursos: [
-              {
-                nome: "Agenda",
-                descricao: "Agenda disponível",
-                versaoFhir: "R4/R5",
-                exemplos: ["Agenda de médico"],
-              },
-              {
-                nome: "Slot",
-                descricao: "Horário disponível",
-                versaoFhir: "R4/R5",
-                exemplos: ["Slot de 15 minutos"],
-              },
-              {
-                nome: "Consulta",
-                descricao: "Agendamento",
-                versaoFhir: "R4/R5",
-                exemplos: ["Consulta marcada"],
-              },
-              {
-                nome: "RespostaConsulta",
-                descricao: "Resposta do agendamento",
-                versaoFhir: "R4/R5",
-                exemplos: ["Confirmação"],
-              },
-            ],
-          },
-          {
-            id: "comunicacao",
-            nome: "Comunicação (L1)",
-            descricao: "Comunicação e notificações",
-            cor: "bg-cyan-100 border-cyan-300",
-            corFundo: "bg-cyan-50",
-            recursos: [
-              {
-                nome: "Comunicacao",
-                descricao: "Comunicação",
-                versaoFhir: "R4/R5",
-                exemplos: ["Mensagem, Notificação"],
-              },
-              {
-                nome: "SolicitacaoComunicacao",
-                descricao: "Solicitação de comunicação",
-                versaoFhir: "R4/R5",
-                exemplos: ["Pedido de contato"],
-              },
-              {
-                nome: "CabecalhoMensagem",
-                descricao: "Cabeçalho de mensagem",
-                versaoFhir: "R4/R5",
-                exemplos: ["Metadados de mensagem"],
-              },
-            ],
+            microsservico: msCoreMedicationsCatalog
           },
         ],
       },
